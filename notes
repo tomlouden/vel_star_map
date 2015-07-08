@@ -1,0 +1,5 @@
+correct_ld did not seem to be converging. kill it, then start a new one with more walkers per core to speed convergence?
+
+made a synthetic spectrum in iSpec with these parameters
+
+what I need to understand is whether it is also necessary to set vmac to 0 too... set one running to see, ask amanda?
