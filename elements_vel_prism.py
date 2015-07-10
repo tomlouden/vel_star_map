@@ -22,7 +22,7 @@ def get_star_spec(scale,profile,vsini,u1,u2,spotnumber=0,spotlong=0,spotlat=0,sp
 
   return the_star
 
-def vel_prism(data_x, input, profile, times, planet_absorb, spot_data=False, type_data='FLUX',plotting=True,get_star_profile=False,load_star=False,save_star=False,result_wvl=False,nproc=4):
+def vel_prism(data_x, input, profile, times, planet_absorb, spot_data=False, type_data='FLUX',plotting=True,get_star_profile=False,load_star=False,save_star=False,result_wvl=False,nproc=4,location='full'):
 
 
   load_star = False
@@ -133,7 +133,7 @@ def vel_prism(data_x, input, profile, times, planet_absorb, spot_data=False, typ
 
   curry = []
   for i in range(0,data_points):
-    curry += [[n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius,planet_y,grid,vel_grid,profile,x,times,vel_model,star_vel_model,east_offset,west_offset,planet_absorb,star_columns,star_profile,shifted_spectra,result_wvl,plotting,1,i]]
+    curry += [[n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius,planet_y,grid,vel_grid,profile,x,times,vel_model,star_vel_model,east_offset,west_offset,planet_absorb,star_columns,star_profile,shifted_spectra,result_wvl,plotting,1,i,location]]
 
   if nproc == 1:
     output = []
@@ -221,9 +221,9 @@ def make_star(scale,vsini,u1,u2,spotnumber=0,spotlong=0,spotlat=0,spotsize=0):
 
 
 def uncurry_model_transit(c):
-  return model_transit(c[0],c[1],c[2],c[3],c[4],c[5],c[6],c[7],c[8],c[9],c[10],c[11],c[12],c[13],c[14],c[15],c[16],c[17],c[18],c[19],c[20],c[21],c[22],c[23],c[24],c[25])
+  return model_transit(c[0],c[1],c[2],c[3],c[4],c[5],c[6],c[7],c[8],c[9],c[10],c[11],c[12],c[13],c[14],c[15],c[16],c[17],c[18],c[19],c[20],c[21],c[22],c[23],c[24],c[25],c[26])
 
-def model_transit(n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius,planet_y,grid,vel_grid,profile,oldx,times,vel_model,star_vel_model,east_offset,west_offset,planet_absorb,star_columns,star_profile,shifted_spectra,result_wvl,plotting,nproc,k):
+def model_transit(n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius,planet_y,grid,vel_grid,profile,oldx,times,vel_model,star_vel_model,east_offset,west_offset,planet_absorb,star_columns,star_profile,shifted_spectra,result_wvl,plotting,nproc,k,location='full'):
 	  planet = np.zeros((n,n)) + 1
 	  atmosphere = np.zeros((n,n)) + 1
 
@@ -279,7 +279,7 @@ def model_transit(n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius
 	  offset = (east_offset + west_offset)/2
 	  ang_vel = (east_offset - offset)
 
-	  r_planet_profile = integrate_rotation_profile(profile,flux,vel_grid,shifted_spectra,oldx,n,star_pixel_rad,planet_absorb,xx,atm_radius,offset,ang_vel,vel_model[k],atmosphere=True,atmosphere_grid=atmosphere,star_columns=star_columns,nproc=nproc)
+	  r_planet_profile = integrate_rotation_profile(profile,flux,vel_grid,shifted_spectra,oldx,n,star_pixel_rad,planet_absorb,xx,atm_radius,offset,ang_vel,vel_model[k],atmosphere=True,atmosphere_grid=atmosphere,star_columns=star_columns,nproc=nproc,location=location)
 	  r_differential_transit = (r_planet_profile/median(r_planet_profile) - (star_profile/median(star_profile)))/(star_profile/median(star_profile))
 	  differential_transit = r_differential_transit
 
@@ -329,11 +329,16 @@ def integrate_star_profile(scale,grid,profile,vel_grid,nproc=4):
 
   return combined_profile/median(combined_profile), star_columns, shifted_spectra
 
-def integrate_rotation_profile(profile,grid,vel_grid,shifted_spectra,x,n,star_pixel_rad,planet_absorb,xx,atm_radius,offset,ang_vel,k_vel,atmosphere=False,atmosphere_grid=False,star_columns=[],nproc=4,plotting=False):
+def integrate_rotation_profile(profile,grid,vel_grid,shifted_spectra,x,n,star_pixel_rad,planet_absorb,xx,atm_radius,offset,ang_vel,k_vel,atmosphere=False,atmosphere_grid=False,star_columns=[],nproc=4,plotting=False,location='full'):
 
   combined_profile = profile['spectrum'].copy()*0.0
   spectrum = profile['spectrum'].copy()
   wvl = profile['wvl'].copy()
+
+  in_atmosphere = []
+  not_in_atmosphere = []
+  Longitude = []
+
     
   for i in range(0,n-1):          # Begin small filling loop
     r = sqrt(x**2+(i-(n/2.0))**2)     # creates an x by i array filled with r 
@@ -341,34 +346,72 @@ def integrate_rotation_profile(profile,grid,vel_grid,shifted_spectra,x,n,star_pi
     star = larray[r <= star_pixel_rad]  # Creates star array. if r > star_pixel_rad returns a single value of -1. Else creates a vector with all the x values at slice i which fall inside the star.  
 
     if(len(star) > 0):
-      in_atmosphere = profile['spectrum'].copy()*0.0
       shifted = profile['spectrum'].copy()*0.0
       corrected = profile['spectrum'].copy()*0.0
 
       if any(abs(atmosphere_grid[i,star]) == 0.5):
-	vel_model = k_vel + offset + ang_vel*sin(0.5*pi*(xx-i)/(50*atm_radius))
-	shifted_planet_absorb = redshift(wvl,planet_absorb,vel_model*1e3)
-	for j in range(0,len(star)):
-	  if abs(atmosphere_grid[i,star[j]]) == 0.5:
-	    shifted += shifted_spectra[i]*grid[i,star[j]]
-	  else:
-	    corrected += shifted_spectra[i]*grid[i,star[j]]
+        vel_model = k_vel + offset + ang_vel*sin(0.5*pi*(xx-i)/(50*atm_radius))
+        shifted_planet_absorb = redshift(wvl,planet_absorb,vel_model*1e3)
+        Longitude += [(xx-i)/(50*atm_radius)]
+        for j in range(0,len(star)):
+          if abs(atmosphere_grid[i,star[j]]) == 0.5:
+            shifted += shifted_spectra[i]*grid[i,star[j]]
+          else:
+            corrected += shifted_spectra[i]*grid[i,star[j]]
 
-	absorbed = shifted*shifted_planet_absorb
-	in_atmosphere += absorbed
+        absorbed = shifted*shifted_planet_absorb
+        in_atmosphere += [absorbed]
+        not_in_atmosphere += [shifted]
 
       elif any(grid[i,star] == 0):
-	for j in range(0,len(star)):
-	  corrected += shifted_spectra[i]*grid[i,star[j]]
+        for j in range(0,len(star)):
+          corrected += shifted_spectra[i]*grid[i,star[j]]
 
       else:
-	#corrected = star_columns[i]
-	for j in range(0,len(star)):
-	  corrected += shifted_spectra[i]*grid[i,star[j]]
-
+        #corrected = star_columns[i]
+        for j in range(0,len(star)):
+          corrected += shifted_spectra[i]*grid[i,star[j]]
 
       combined_profile += corrected
-      combined_profile += in_atmosphere
+
+
+  in_atmosphere = np.array(in_atmosphere)
+  not_in_atmosphere = np.array(not_in_atmosphere)
+  Longitude = np.array(Longitude)
+
+  summed_atmosphere = 0.0*combined_profile.copy()
+
+  for ii in range(0,len(Longitude)):
+    if location == 'leftest':
+      if Longitude[ii] == min(Longitude):
+        summed_atmosphere += in_atmosphere[ii]*(len(Longitude))
+      else:
+        summed_atmosphere += not_in_atmosphere[ii]
+
+  for ii in range(0,len(Longitude)):
+    if location == 'left':
+      if Longitude[ii] < 0:
+        summed_atmosphere += in_atmosphere[ii]
+      else:
+        summed_atmosphere += not_in_atmosphere[ii]
+
+
+    if location == 'rightest':
+      if Longitude[ii] == max(Longitude):
+        summed_atmosphere += in_atmosphere[ii]*(len(Longitude))
+      else:
+        summed_atmosphere += not_in_atmosphere[ii]
+
+    if location == 'right':
+      if Longitude[ii] > 0:
+        summed_atmosphere += in_atmosphere[ii]
+      else:
+        summed_atmosphere += not_in_atmosphere[ii]
+
+    if location == 'full':
+      summed_atmosphere += in_atmosphere[ii]*(len(Longitude))
+
+  combined_profile += summed_atmosphere
 
   return combined_profile
 

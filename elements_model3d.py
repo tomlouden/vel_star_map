@@ -4,7 +4,7 @@ from numpy import array
 from numpy import sin
 from numpy import pi
 from pyspeckit.spectrum.models.inherited_voigtfitter import voigt
-from mp_vel_prism_new import vel_prism
+from elements_vel_prism import vel_prism
 
 def fit_model_3d(x,time,period,planet_K,star_K,midtransit,spectra,spectra_errors,wvl,line_centers,plotting=False,nproc=4,best_fit=False):
 
@@ -70,7 +70,7 @@ def fit_model_3d(x,time,period,planet_K,star_K,midtransit,spectra,spectra_errors
   
   return diff
 
-def model_3d(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,nproc=4,best_fit=False,save_star=False,load_star=False,star_vsini=3.1):
+def model_3d(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,nproc=4,best_fit=False,save_star=False,load_star=False,star_vsini=3.1,location='full'):
     #p0 = 0.1572
     #radiustotal = (1.0 + p0)/8.92
     #gamma_0 = 0.94426940
@@ -148,7 +148,7 @@ def model_3d(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,
     #show()
     #quit()
 
-    results = vel_prism(data_x, input, profile, time,planet_absorb,spot_data=False, type_data='FLUX',plotting=plotting,result_wvl=wvl,nproc=nproc,save_star=save_star,load_star=load_star)
+    results = vel_prism(data_x, input, profile, time,planet_absorb,spot_data=False, type_data='FLUX',plotting=plotting,result_wvl=wvl,nproc=nproc,save_star=save_star,load_star=load_star,location=location)
     return results
 
 def voigt_line(x,wvl):
