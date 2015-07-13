@@ -3,8 +3,10 @@ from numpy import loadtxt
 from numpy import array
 from numpy import sin
 from numpy import pi
-from pyspeckit.spectrum.models.inherited_voigtfitter import voigt
+#from pyspeckit.spectrum.models.inherited_voigtfitter import voigt
+import numpy as np
 from elements_vel_prism import vel_prism
+import scipy
 
 def fit_model_3d(x,time,period,planet_K,star_K,midtransit,spectra,spectra_errors,wvl,line_centers,plotting=False,nproc=4,best_fit=False):
 
@@ -63,8 +65,8 @@ def fit_model_3d(x,time,period,planet_K,star_K,midtransit,spectra,spectra_errors
 
 #  print x[0],x[1],chi2
 
-  print x
-  print chi2
+  print(x)
+  print(chi2)
 
   diff = diff.reshape((elements))
   
@@ -165,3 +167,54 @@ def voigt_line(x,wvl):
   line = amp*line/max(line)
 
   return line
+
+def voigt(xarr,amp,xcen,sigma,gamma,normalized=False):
+    """
+    Normalized Voigt profile
+
+    z = (x+i*gam)/(sig*sqrt(2))
+    V(x,sig,gam) = Re(w(z))/(sig*sqrt(2*pi))
+
+    The area of V in this definition is 1.
+    If normalized=False, then you can divide the integral of V by
+    sigma*sqrt(2*pi) to get the area.
+
+    Original implementation converted from 
+    http://mail.scipy.org/pipermail/scipy-user/2011-January/028327.html
+    (had an incorrect normalization and strange treatment of the input
+    parameters)
+
+    Modified implementation taken from wikipedia, using the definition.
+    http://en.wikipedia.org/wiki/Voigt_profile
+
+    Parameters
+    ----------
+    xarr : np.ndarray
+        The X values over which to compute the Voigt profile
+    amp : float
+        Amplitude of the voigt profile
+        if normalized = True, amp is the AREA
+    xcen : float
+        The X-offset of the profile
+    sigma : float
+        The width / sigma parameter of the Gaussian distribution
+    gamma : float
+        The width / shape parameter of the Lorentzian distribution
+    normalized : bool
+        Determines whether "amp" refers to the area or the peak
+        of the voigt profile
+    """
+
+    z = ((xarr-xcen) + 1j*gamma) / (sigma * np.sqrt(2))
+    V = amp * np.real(scipy.special.wofz(z)) 
+    if normalized:
+        return V / (sigma*np.sqrt(2*np.pi))
+    else:
+        return V
+        #tmp = 1.0/scipy.special.wofz(numpy.zeros((len(xarr))) \
+        #      +1j*numpy.sqrt(numpy.log(2.0))*Lfwhm).real
+        #tmp = tmp*amp* \
+        #      scipy.special.wofz(2*numpy.sqrt(numpy.log(2.0))*(xarr-xcen)/Gfwhm+1j* \
+        #      numpy.sqrt(numpy.log(2.0))*Lfwhm).real
+        #return tmp
+

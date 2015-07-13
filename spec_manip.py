@@ -14,7 +14,7 @@ def measure_rvs(wvl,spectra,min_vel=-300,max_vel=300,steps=100):
   for i in range(0,len(spectra)):
     rv = find_rv(wvl,spectra[i]/np.median(spectra[i]),wvl,master_spectra,min_vel=min_vel,max_vel=max_vel,steps=steps)
     rvs += [rv]
-    print rv
+    print(rv)
   rvs = np.array(rvs)
   return rvs
 
@@ -49,7 +49,6 @@ def redshift(wave,specin,velocity):
 def find_rv(wvl,spec,ref_wvl,ref_spec,min_vel=-300,max_vel=300,steps=1000):
   import scipy.optimize as opt
   from scipy.interpolate import interp1d
-  from pylab import *
 
   # make velocity grid
   vels = np.linspace(min_vel,max_vel,steps)
@@ -110,7 +109,6 @@ def gauss_model(x,coord):
   return model
 
 def calc_ccf(vels,wvl,spec,ref_wvl,ref_spec):
-  from pylab import *
 
   # rebin reference spectrum to observed spectrum
   ref_spec = rebin_spec(ref_wvl,ref_spec,wvl)
