@@ -22,7 +22,7 @@ def get_star_spec(scale,profile,vsini,u1,u2,spotnumber=0,spotlong=0,spotlat=0,sp
 
   return the_star
 
-def vel_prism(data_x, input, profile, times, planet_absorb, spot_data=False, type_data='FLUX',plotting=True,get_star_profile=False,load_star=False,save_star=False,result_wvl=False,nproc=4,location='full'):
+def vel_prism(data_x, input, profile, times, planet_absorb, spot_data=False, type_data='FLUX',plotting=True,get_star_profile=False,load_star=False,save_star=False,result_wvl=False,nproc=4,location='full',absolute=False):
 
 
   load_star = False
@@ -133,7 +133,7 @@ def vel_prism(data_x, input, profile, times, planet_absorb, spot_data=False, typ
 
   curry = []
   for i in range(0,data_points):
-    curry += [[n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius,planet_y,grid,vel_grid,profile,x,times,vel_model,star_vel_model,east_offset,west_offset,planet_absorb,star_columns,star_profile,shifted_spectra,result_wvl,plotting,1,i,location]]
+    curry += [[n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius,planet_y,grid,vel_grid,profile,x,times,vel_model,star_vel_model,east_offset,west_offset,planet_absorb,star_columns,star_profile,shifted_spectra,result_wvl,plotting,1,i,location,absolute]]
 
   if nproc == 1:
     output = []
@@ -221,9 +221,9 @@ def make_star(scale,vsini,u1,u2,spotnumber=0,spotlong=0,spotlat=0,spotsize=0):
 
 
 def uncurry_model_transit(c):
-  return model_transit(c[0],c[1],c[2],c[3],c[4],c[5],c[6],c[7],c[8],c[9],c[10],c[11],c[12],c[13],c[14],c[15],c[16],c[17],c[18],c[19],c[20],c[21],c[22],c[23],c[24],c[25],c[26])
+  return model_transit(c[0],c[1],c[2],c[3],c[4],c[5],c[6],c[7],c[8],c[9],c[10],c[11],c[12],c[13],c[14],c[15],c[16],c[17],c[18],c[19],c[20],c[21],c[22],c[23],c[24],c[25],c[26],c[27])
 
-def model_transit(n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius,planet_y,grid,vel_grid,profile,oldx,times,vel_model,star_vel_model,east_offset,west_offset,planet_absorb,star_columns,star_profile,shifted_spectra,result_wvl,plotting,nproc,k,location='full'):
+def model_transit(n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius,planet_y,grid,vel_grid,profile,oldx,times,vel_model,star_vel_model,east_offset,west_offset,planet_absorb,star_columns,star_profile,shifted_spectra,result_wvl,plotting,nproc,k,location='full',absolute=False):
       planet = np.zeros((n,n)) + 1
       atmosphere = np.zeros((n,n)) + 1
 
@@ -280,8 +280,22 @@ def model_transit(n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius
       ang_vel = (east_offset - offset)
 
       r_planet_profile = integrate_rotation_profile(profile,flux,vel_grid,shifted_spectra,oldx,n,star_pixel_rad,planet_absorb,xx,atm_radius,offset,ang_vel,vel_model[k],atmosphere=True,atmosphere_grid=atmosphere,star_columns=star_columns,nproc=nproc,location=location)
-      r_differential_transit = (r_planet_profile/median(r_planet_profile) - (star_profile/median(star_profile)))/(star_profile/median(star_profile))
-      differential_transit = r_differential_transit
+
+      if absolute == False:
+        r_differential_transit = (r_planet_profile/median(r_planet_profile) - (star_profile/median(star_profile)))/(star_profile/median(star_profile))
+        differential_transit = r_differential_transit
+        if any(result_wvl != False):
+          results = rebin_spec(wvl,differential_transit + 1,result_wvl)
+        else:
+          results = differential_transit + 1
+
+      else:
+        r_differential_transit = r_planet_profile/median(star_profile) - star_profile/median(star_profile)
+        differential_transit = r_differential_transit
+        if any(result_wvl != False):
+          results = rebin_spec(wvl,differential_transit + 1,result_wvl)
+        else:
+          results = differential_transit + 1
 
 #      planet_profile = integrate_transit_profile(profile,flux,vel_grid,shifted_spectra,oldx,n,star_pixel_rad,east_planet_absorb,west_planet_absorb,atmosphere=True,atmosphere_grid=atmosphere,star_columns=star_columns,nproc=nproc)
 
@@ -293,12 +307,114 @@ def model_transit(n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius
 #      show()
 #          quit()
 
-      if any(result_wvl != False):
-        results = rebin_spec(wvl,differential_transit + 1,result_wvl)
-      else:
-        results = differential_transit + 1
-
       return results
+
+def illum_track(data_x, input, profile, times, planet_absorb, spot_data=False, type_data='FLUX',plotting=True,get_star_profile=False,load_star=False,save_star=False,result_wvl=False,nproc=4,location='full',absolute=False):
+
+
+  load_star = False
+
+  radiusratio = input[0]
+  system_scale = input[1]
+
+  semimajor = 1.0/system_scale
+
+  radiustotal = (1.0 + radiusratio)/semimajor
+
+  u1 = input[2]# First LD Coefficent?  
+
+  u2 = input[3]# Second LD Coefficent? 
+
+  inclination = input[4]# Enter the Inclination ie (i)  must be 0 < i > 90
+  
+  if spot_data == True:
+    spotnumber = 1 
+  else:
+    spotnumber = 0# How many star-spots?  
+
+  # If star spots then create spot propaties with user entered values.
+
+  vsini = input[5]
+  planet_K = input[6]
+  star_K = input[7]
+  midtransit = input[8]
+  period = input[9]
+  east_offset = input[10]
+  west_offset = input[11]
+  atm_radius = 1.0 + input[12]
+
+  if spotnumber > 0:
+    spotlong = input[13]   # Longituduile postion of spot? ie -90 to 90 note: that 0 is the centre
+    spotlat = input[14]    # latitude postion of spot? ie 0 to 90 note: that 90 is the equator
+    spotsize = input[15]    # Radius of spot in degrees? note 90 degrees equals the whole stellar disc
+    spotflux = input[16] # Flux of spot? ie 1.00 equals stellar photosphere
+
+  # Convert user variables to system variables
+
+  rs = radiustotal/(radiusratio+1)    # Stellar Radius
+
+  rp = (radiustotal-rs) # gives the planet radii scaled to stellar radius.
+
+  # Now to select a grid size based on system size
+
+  scale = rs/rp
+
+  n = int((100.0 * (rs/rp)))  # Using a planet with a 50 pixel radius 
+
+  # Creates a n*n Grid where n is twice the length of both the planet plus the star radii in pixels
+
+  # Convert inclination to y corrodinates on grid
+
+  inclination_rad = (inclination/180)*(pi) # Converts from degrees to radians
+
+  planet_y_scalar = semimajor * cos(inclination_rad) # finds the planets y corrodinate
+
+  if planet_y_scalar < 0:
+    planet_y_scalar = 0 # Cos(90) gives a small negative value, so reset cos(90) = 0
+
+  # set the y-corroditite of the planet
+
+  planet_y = (planet_y_scalar)/(1+(rp/rs)) * ((50.0 * (rs/rp)) +50.0)
+
+  y_offset = (n/2) - planet_y
+
+  # creating the Star on the grid with quadratic limb darkening.
+
+  star_pixel_rad = ((rs/rp) * 50.0)  # Star radius in planetary radii multiplyed by 50 pixels
+
+  x=np.arange(-n/2,n/2)            # Create an vector of length n filled from -n/2 to n/2
+
+  if spotnumber > 0:
+    the_star = get_star_spec(scale,profile,vsini,u1,u2,spotnumber=0,spotlong=0,spotlat=0,spotsize=0,load_star=load_star,save_star=save_star,nproc=nproc)
+  else:
+    the_star = get_star_spec(scale,profile,vsini,u1,u2,load_star=load_star,save_star=save_star,nproc=nproc)
+
+
+  vel_grid = the_star['velocity']
+  grid = the_star['intensity']
+  star_profile = the_star['profile']
+  star_columns = the_star['columns']
+  shifted_spectra = the_star['shifted_spectra']
+
+  wvl = profile['wvl']
+
+  vel_model = planet_K*sin(2.0*pi*(midtransit-times)/period)
+  star_vel_model = -1*star_K*sin(2.0*pi*(midtransit-times)/period)
+
+
+  # Intergrations of the planet to create LC model.
+
+#  let's multiprocess this instead, set it up as a new function and map k to pool tada?...
+
+  p = multiprocessing.Pool(nproc)
+
+  data_points = len(data_x)
+
+  # make curry
+
+  print 'helloooooo2'
+
+  return output
 
 def integrate_star_profile(scale,grid,profile,vel_grid,nproc=4):
   
@@ -327,7 +443,8 @@ def integrate_star_profile(scale,grid,profile,vel_grid,nproc=4):
   star_columns = output[:,0]
   shifted_spectra = output[:,1]
 
-  return combined_profile/median(combined_profile), star_columns, shifted_spectra
+#  return combined_profile/median(combined_profile), star_columns, shifted_spectra
+  return combined_profile, star_columns, shifted_spectra
 
 def integrate_rotation_profile(profile,grid,vel_grid,shifted_spectra,x,n,star_pixel_rad,planet_absorb,xx,atm_radius,offset,ang_vel,k_vel,atmosphere=False,atmosphere_grid=False,star_columns=[],nproc=4,plotting=False,location='full'):
 
@@ -379,7 +496,8 @@ def integrate_rotation_profile(profile,grid,vel_grid,shifted_spectra,x,n,star_pi
   not_in_atmosphere = np.array(not_in_atmosphere)
   Longitude = np.array(Longitude)
 
-  summed_atmosphere = 0.0*combined_profile.copy()
+  summed_atmosphere = combined_profile.copy()
+  summed_atmosphere = 0.0*summed_atmosphere
 
   for ii in range(0,len(Longitude)):
     if location == 'leftest':
@@ -409,7 +527,12 @@ def integrate_rotation_profile(profile,grid,vel_grid,shifted_spectra,x,n,star_pi
         summed_atmosphere += not_in_atmosphere[ii]
 
     if location == 'full':
-      summed_atmosphere += in_atmosphere[ii]*(len(Longitude))
+      summed_atmosphere += in_atmosphere[ii]
+
+    if location == 'none':
+      summed_atmosphere += not_in_atmosphere[ii]
+
+
 
   combined_profile += summed_atmosphere
 

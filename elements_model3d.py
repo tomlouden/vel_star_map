@@ -5,7 +5,7 @@ from numpy import sin
 from numpy import pi
 #from pyspeckit.spectrum.models.inherited_voigtfitter import voigt
 import numpy as np
-from elements_vel_prism import vel_prism
+from elements_vel_prism import vel_prism, illum_track
 import scipy
 
 def fit_model_3d(x,time,period,planet_K,star_K,midtransit,spectra,spectra_errors,wvl,line_centers,plotting=False,nproc=4,best_fit=False):
@@ -72,7 +72,7 @@ def fit_model_3d(x,time,period,planet_K,star_K,midtransit,spectra,spectra_errors
   
   return diff
 
-def model_3d(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,nproc=4,best_fit=False,save_star=False,load_star=False,star_vsini=3.1,location='full'):
+def model_3d(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,nproc=4,best_fit=False,save_star=False,load_star=False,star_vsini=3.1,location='full',absolute=False):
     #p0 = 0.1572
     #radiustotal = (1.0 + p0)/8.92
     #gamma_0 = 0.94426940
@@ -150,8 +150,79 @@ def model_3d(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,
     #show()
     #quit()
 
-    results = vel_prism(data_x, input, profile, time,planet_absorb,spot_data=False, type_data='FLUX',plotting=plotting,result_wvl=wvl,nproc=nproc,save_star=save_star,load_star=load_star,location=location)
+    results = vel_prism(data_x, input, profile, time,planet_absorb,spot_data=False, type_data='FLUX',plotting=plotting,result_wvl=wvl,nproc=nproc,save_star=save_star,load_star=load_star,location=location,absolute=absolute)
     return results
+
+def illumination_model(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,nproc=4,best_fit=False,save_star=False,load_star=False,star_vsini=3.1,location='full',absolute=False):
+
+    if len(x) == 8:
+      p0 = 0.1572
+      system_scale = 1.0/8.92
+      gamma_0 = x[0]
+      gamma_1 = x[1]
+      inc = 85.68
+      #star_vsini = 3.1
+      east_offset = x[2]
+      west_offset = x[3]
+      atm_radius = x[4]
+      fwhm = x[5]
+      ratio = x[6]
+      atm_strength = x[7]
+
+    else:
+      p0 = 0.1572
+      system_scale = 1.0/8.92
+#      gamma_0 = best_fit['ld1']
+#      gamma_1 = best_fit['ld2']
+      inc = 85.68
+      #star_vsini = 3.1
+      east_offset = x[0]
+      west_offset = x[1]
+
+      atm_radius = best_fit['atm_radius']
+      fwhm = x[2]
+      ratio = x[3]
+      atm_strength = x[4]
+
+      gamma_0 = x[0]
+      gamma_1 = x[1]
+      east_offset = x[2]
+      west_offset = x[3]
+      atm_radius = best_fit['atm_radius']
+      fwhm = x[4]
+      ratio = x[5]
+      atm_strength = x[6]
+
+
+    input = [p0,system_scale,gamma_0,gamma_1,inc,star_vsini,planet_K,star_K,midtransit,period,east_offset,west_offset,atm_radius]
+    data_x = (time-midtransit)/period
+    master_dat = loadtxt('sodium_spectrum.dat')
+    model_wvl = array(master_dat[:,0])
+    master_flux = array(master_dat[:,1])
+    profile = {'wvl':model_wvl,'spectrum':master_flux}
+
+    planet_absorb = array([1.0]*len(model_wvl))
+    amp = 1.0
+    fwhm = 0.4*abs(fwhm)
+    ratio = abs(ratio)
+    strengths = [1.0,0.5]
+
+    s = 0
+    for center in line_centers:
+      planet_absorb = planet_absorb*(1.0 - atm_strength*strengths[s]*voigt_line([amp,center,fwhm,ratio],model_wvl))
+      s += 1
+
+    for i in range(0,len(planet_absorb)):
+      if planet_absorb[i] < 0:
+        planet_absorb[i] = 0
+
+    #plot(model_wvl,planet_absorb)
+    #show()
+    #quit()
+
+    results = illum_track(data_x, input, profile, time,planet_absorb,spot_data=False, type_data='FLUX',plotting=plotting,result_wvl=wvl,nproc=nproc,save_star=save_star,load_star=load_star,location=location,absolute=absolute)
+    return results
+
 
 def voigt_line(x,wvl):
   amp = x[0]
