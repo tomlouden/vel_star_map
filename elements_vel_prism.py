@@ -398,7 +398,7 @@ def illum_track(data_x, input, profile, times, planet_absorb, spot_data=False, t
 
   wvl = profile['wvl']
 
-  vel_model = planet_K*sin(2.0*pi*(midtransit-times)/period)
+  vel_model = 2.3 + planet_K*sin(2.0*pi*(midtransit-times)/period)
   star_vel_model = -1*star_K*sin(2.0*pi*(midtransit-times)/period)
 
 
@@ -412,9 +412,34 @@ def illum_track(data_x, input, profile, times, planet_absorb, spot_data=False, t
 
   # make curry
 
-  print 'helloooooo2'
+  new_data_x = data_x.copy()
 
-  return output
+  xx = ( (sin(new_data_x * 2 * pi)*(semimajor * star_pixel_rad))) +((50.0 * (rs/rp)))
+  int_xx = np.array([int(x) for x in xx])
+
+  int_y = int(planet_y)
+
+  d1 = 5895.924
+  d2 = 5889.950
+
+  c = 3e5
+
+  shifted_d1 = d1*(1.0 - (vel_model/c))
+  shifted_d2 = d2*(1.0 - (vel_model/c))
+
+  background_d1 = []
+  background_d2 = []
+
+  for i in range(0,len(vel_model)):
+    ld = grid[xx[i],planet_y]
+    med_shifted_spectra = ld*shifted_spectra[i]/np.median(shifted_spectra[0])
+    background_d1 += [med_shifted_spectra[argmin(abs(wvl-shifted_d1[i]))]]
+    background_d2 += [med_shifted_spectra[argmin(abs(wvl-shifted_d2[i]))]]
+
+  background_d2 = np.array(background_d2)
+  background_d1 = np.array(background_d1)
+
+  return wvl, background_d1, background_d2
 
 def integrate_star_profile(scale,grid,profile,vel_grid,nproc=4):
   
