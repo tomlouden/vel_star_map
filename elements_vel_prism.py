@@ -311,7 +311,6 @@ def model_transit(n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius
 
 def illum_track(data_x, input, profile, times, planet_absorb, spot_data=False, type_data='FLUX',plotting=True,get_star_profile=False,load_star=False,save_star=False,result_wvl=False,nproc=4,location='full',absolute=False):
 
-
   load_star = False
 
   radiusratio = input[0]
@@ -417,8 +416,15 @@ def illum_track(data_x, input, profile, times, planet_absorb, spot_data=False, t
   new_data_x = data_x.copy()
 
   xx = ( (sin(new_data_x * 2 * pi)*(semimajor * star_pixel_rad))) +((50.0 * (rs/rp)))
-  int_xx = np.array([int(x) for x in xx])
+  old_xx = xx.copy()
+  thickness = 50*atm_radius
+  if location == 'left':
+    xx = xx - thickness
+  if location == 'right':
+    xx = xx + thickness
 
+
+  int_xx = np.array([int(x) for x in xx])
   int_y = int(planet_y)
 
   d1 = 5895.924
@@ -431,19 +437,29 @@ def illum_track(data_x, input, profile, times, planet_absorb, spot_data=False, t
 
   background_d1 = []
   background_d2 = []
-
-  star_vel = vel_grid[int_xx,planet_y]
+  star_vel = []
+  out_shifted_spectra = []
 
   for i in range(0,len(vel_model)):
-    ld = grid[xx[i],planet_y]
-    med_shifted_spectra = ld*shifted_spectra[xx[i]]/np.median(shifted_spectra[0])
-    background_d1 += [med_shifted_spectra[argmin(abs(wvl-shifted_d1[i]))]]
-    background_d2 += [med_shifted_spectra[argmin(abs(wvl-shifted_d2[i]))]]
+    if (xx[i] > max(old_xx)) or (xx[i] < min(old_xx)):
+      background_d1 += [0]
+      background_d2 += [0]
+      star_vel += [0]
+      out_shifted_spectra += [shifted_spectra[0].copy()*0.0]
+    else:
+      ld = grid[xx[i],planet_y]
+      med_shifted_spectra = ld*shifted_spectra[int_xx[i]]/np.median(shifted_spectra[0])
+      background_d1 += [med_shifted_spectra[argmin(abs(wvl-shifted_d1[i]))]]
+      background_d2 += [med_shifted_spectra[argmin(abs(wvl-shifted_d2[i]))]]
+      star_vel += [vel_grid[int_xx[i],planet_y]]
+      out_shifted_spectra += [shifted_spectra[int_xx[i]]]
+
 
   background_d2 = np.array(background_d2)
   background_d1 = np.array(background_d1)
+  star_vel = np.array(star_vel)
 
-  return wvl, background_d1, background_d2, star_vel, vel_model-star_rv, shifted_d1,shifted_spectra[int_xx]
+  return wvl, background_d1, background_d2, star_vel, vel_model-star_rv, shifted_d1,out_shifted_spectra
 
 def integrate_star_profile(scale,grid,profile,vel_grid,nproc=4):
   
