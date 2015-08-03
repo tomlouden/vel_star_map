@@ -1,3 +1,0 @@
-#!/bin/bash
-FNAME="$1"
-ipython nbconvert --to html --template html_nocode.tpl $FNAME

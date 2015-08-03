@@ -1,3 +1,0 @@
-#!/bin/bash
-FNAME="$1"
-ipython nbconvert --to PDF --template latex_nocode.tplx $FNAME
