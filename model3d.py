@@ -3,8 +3,10 @@ from numpy import loadtxt
 from numpy import array
 from numpy import sin
 from numpy import pi
-from pyspeckit.spectrum.models.inherited_voigtfitter import voigt
-from mp_vel_prism_new import vel_prism
+#from pyspeckit.spectrum.models.inherited_voigtfitter import voigt
+import numpy as np
+from vel_prism import vel_prism, illum_track
+import scipy
 
 def fit_model_3d(x,time,period,planet_K,star_K,midtransit,spectra,spectra_errors,wvl,line_centers,plotting=False,nproc=4,best_fit=False):
 
@@ -63,25 +65,96 @@ def fit_model_3d(x,time,period,planet_K,star_K,midtransit,spectra,spectra_errors
 
 #  print x[0],x[1],chi2
 
-  print x
-  print chi2
+  print(x)
+  print(chi2)
 
   diff = diff.reshape((elements))
   
   return diff
 
-def model_3d(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,nproc=4,best_fit=False,save_star=False,load_star=False,star_vsini=3.1):
-    #p0 = 0.1572
-    #radiustotal = (1.0 + p0)/8.92
-    #gamma_0 = 0.94426940
-    #gamma_1 = -0.41811691
-    #inc = 85.68
-    #star_vsini = 3.1
-    #planet_K = 154
-    #vel_offset = 2.3
-    #atm_radius = 0.1
-    #fwhm = 0.5
-    #ratio = 300
+def model_3d(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,star_profile,planet_absorb,nproc=4,best_fit=False,save_star=False,load_star=False,star_vsini=0,location='full',absolute=False,result_wvl=False,spot_profile=False):
+
+
+    p0 = 0.1572
+    system_scale = 1.0/8.92
+    gamma_0 = x[0]
+    gamma_1 = x[1]
+    inc = 85.68
+    east_offset = x[2]*0
+    west_offset = x[3]*0
+    atm_radius = x[4]
+    fwhm = x[5]
+    ratio = x[6]
+    atm_strength = x[7]
+
+
+
+#    if len(x) == 8:
+#      p0 = 0.1572
+#      system_scale = 1.0/8.92
+#      gamma_0 = x[0]
+#      gamma_1 = x[1]
+#      inc = 85.68
+#      east_offset = x[2]*0
+#      west_offset = x[3]*0
+#      atm_radius = x[4]
+#      fwhm = x[5]
+#      ratio = x[6]
+#      atm_strength = x[7]
+
+#    else:
+#      p0 = 0.1572
+#      system_scale = 1.0/8.92
+#      gamma_0 = best_fit['ld1']
+#      gamma_1 = best_fit['ld2']
+#      inc = 85.68
+      #star_vsini = 3.1
+#      east_offset = x[0]
+#      west_offset = x[1]
+
+#      atm_radius = best_fit['atm_radius']
+#      fwhm = x[2]
+#      ratio = x[3]
+#      atm_strength = x[4]
+
+#      gamma_0 = x[0]
+#      gamma_1 = x[1]
+#      east_offset = x[2]*0
+#      west_offset = x[3]*0
+#      atm_radius = best_fit['atm_radius']
+#      fwhm = x[4]
+#      ratio = x[5]
+#      atm_strength = x[6]
+
+
+    spotlong, spotlat, spotsize, spotflux = x[8],x[9],x[10],x[11]
+
+    spotlong = []
+    spotlat = []
+    spotsize = []
+    spotflux = []
+    for i in range(0,len(x[8:])/4):
+      spotlong +=[x[i*4 + 8]]
+      spotlat +=[x[i*4 + 9]]
+      spotsize +=[x[i*4 + 10]]
+      spotflux +=[x[i*4 + 11]]
+
+    input = [p0,system_scale,gamma_0,gamma_1,inc,star_vsini,planet_K,star_K,midtransit,period,east_offset,west_offset,atm_radius,spotlong, spotlat, spotsize, spotflux]
+    data_x = (time-midtransit)/period
+#    master_dat = loadtxt('sodium_spectrum.dat')
+#    model_wvl = array(master_dat[:,0])
+#    master_flux = array(master_dat[:,1])
+#    profile = {'wvl':model_wvl,'spectrum':master_flux}
+
+    #plot(model_wvl,planet_absorb)
+    #show()
+    #quit()
+    spot_data = True
+
+    results = vel_prism(data_x, input, star_profile, time,planet_absorb,spot_data=spot_data, type_data='FLUX',plotting=plotting,result_wvl=result_wvl,nproc=nproc,save_star=save_star,load_star=load_star,location=location,absolute=absolute,spot_profile=spot_profile)
+    return results
+
+def illumination_model(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,star_profile,nproc=4,best_fit=False,save_star=False,load_star=False,star_vsini=3.1,location='full',absolute=False):
 
     if len(x) == 8:
       p0 = 0.1572
@@ -124,10 +197,10 @@ def model_3d(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,
 
     input = [p0,system_scale,gamma_0,gamma_1,inc,star_vsini,planet_K,star_K,midtransit,period,east_offset,west_offset,atm_radius]
     data_x = (time-midtransit)/period
-    master_dat = loadtxt('sodium_spectrum.dat')
-    model_wvl = array(master_dat[:,0])
-    master_flux = array(master_dat[:,1])
-    profile = {'wvl':model_wvl,'spectrum':master_flux}
+#    master_dat = loadtxt('sodium_spectrum.dat')
+#    model_wvl = array(master_dat[:,0])
+#    master_flux = array(master_dat[:,1])
+#    profile = {'wvl':model_wvl,'spectrum':master_flux}
 
     planet_absorb = array([1.0]*len(model_wvl))
     amp = 1.0
@@ -142,14 +215,15 @@ def model_3d(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,
 
     for i in range(0,len(planet_absorb)):
       if planet_absorb[i] < 0:
-	planet_absorb[i] = 0
+        planet_absorb[i] = 0
 
     #plot(model_wvl,planet_absorb)
     #show()
     #quit()
 
-    results = vel_prism(data_x, input, profile, time,planet_absorb,spot_data=False, type_data='FLUX',plotting=plotting,result_wvl=wvl,nproc=nproc,save_star=save_star,load_star=load_star)
+    results = illum_track(data_x, input, profile, time,planet_absorb,spot_data=False, type_data='FLUX',plotting=plotting,result_wvl=wvl,nproc=nproc,save_star=save_star,load_star=load_star,location=location,absolute=absolute)
     return results
+
 
 def voigt_line(x,wvl):
   amp = x[0]
@@ -165,3 +239,54 @@ def voigt_line(x,wvl):
   line = amp*line/max(line)
 
   return line
+
+def voigt(xarr,amp,xcen,sigma,gamma,normalized=False):
+    """
+    Normalized Voigt profile
+
+    z = (x+i*gam)/(sig*sqrt(2))
+    V(x,sig,gam) = Re(w(z))/(sig*sqrt(2*pi))
+
+    The area of V in this definition is 1.
+    If normalized=False, then you can divide the integral of V by
+    sigma*sqrt(2*pi) to get the area.
+
+    Original implementation converted from 
+    http://mail.scipy.org/pipermail/scipy-user/2011-January/028327.html
+    (had an incorrect normalization and strange treatment of the input
+    parameters)
+
+    Modified implementation taken from wikipedia, using the definition.
+    http://en.wikipedia.org/wiki/Voigt_profile
+
+    Parameters
+    ----------
+    xarr : np.ndarray
+        The X values over which to compute the Voigt profile
+    amp : float
+        Amplitude of the voigt profile
+        if normalized = True, amp is the AREA
+    xcen : float
+        The X-offset of the profile
+    sigma : float
+        The width / sigma parameter of the Gaussian distribution
+    gamma : float
+        The width / shape parameter of the Lorentzian distribution
+    normalized : bool
+        Determines whether "amp" refers to the area or the peak
+        of the voigt profile
+    """
+
+    z = ((xarr-xcen) + 1j*gamma) / (sigma * np.sqrt(2))
+    V = amp * np.real(scipy.special.wofz(z)) 
+    if normalized:
+        return V / (sigma*np.sqrt(2*np.pi))
+    else:
+        return V
+        #tmp = 1.0/scipy.special.wofz(numpy.zeros((len(xarr))) \
+        #      +1j*numpy.sqrt(numpy.log(2.0))*Lfwhm).real
+        #tmp = tmp*amp* \
+        #      scipy.special.wofz(2*numpy.sqrt(numpy.log(2.0))*(xarr-xcen)/Gfwhm+1j* \
+        #      numpy.sqrt(numpy.log(2.0))*Lfwhm).real
+        #return tmp
+
