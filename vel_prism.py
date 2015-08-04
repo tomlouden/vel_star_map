@@ -25,7 +25,6 @@ def get_star_spec(scale,profile,vsini,u1,u2,spotnumber=0,spotlong=0,spotlat=0,sp
 
 def vel_prism(data_x, input, profile, times, planet_absorb, spot_data=False, type_data='FLUX',plotting=True,get_star_profile=False,load_star=False,save_star=False,result_wvl=False,nproc=4,location='full',absolute=False,spot_profile=False):
 
-
   load_star = False
   # Enter the total stellar and planetary radii  ie (rs + rp) 
 
