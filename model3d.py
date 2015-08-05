@@ -72,7 +72,7 @@ def fit_model_3d(x,time,period,planet_K,star_K,midtransit,spectra,spectra_errors
   
   return diff
 
-def model_3d(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,star_profile,planet_absorb,nproc=4,best_fit=False,save_star=False,load_star=False,star_vsini=0,location='full',absolute=False,result_wvl=False,spot_profile=False):
+def model_3d(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,star_profile,planet_absorb,nproc=4,best_fit=False,save_star=False,load_star=False,star_vsini=0,location='full',absolute=False,result_wvl=False,spot_profile=False,spotlong=[],spotlat=[],spotsize=[],spotfill=[]):
 
 
     p0 = 0.1572
@@ -87,71 +87,11 @@ def model_3d(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,
     ratio = x[6]
     atm_strength = x[7]
 
-
-
-#    if len(x) == 8:
-#      p0 = 0.1572
-#      system_scale = 1.0/8.92
-#      gamma_0 = x[0]
-#      gamma_1 = x[1]
-#      inc = 85.68
-#      east_offset = x[2]*0
-#      west_offset = x[3]*0
-#      atm_radius = x[4]
-#      fwhm = x[5]
-#      ratio = x[6]
-#      atm_strength = x[7]
-
-#    else:
-#      p0 = 0.1572
-#      system_scale = 1.0/8.92
-#      gamma_0 = best_fit['ld1']
-#      gamma_1 = best_fit['ld2']
-#      inc = 85.68
-      #star_vsini = 3.1
-#      east_offset = x[0]
-#      west_offset = x[1]
-
-#      atm_radius = best_fit['atm_radius']
-#      fwhm = x[2]
-#      ratio = x[3]
-#      atm_strength = x[4]
-
-#      gamma_0 = x[0]
-#      gamma_1 = x[1]
-#      east_offset = x[2]*0
-#      west_offset = x[3]*0
-#      atm_radius = best_fit['atm_radius']
-#      fwhm = x[4]
-#      ratio = x[5]
-#      atm_strength = x[6]
-
-
-    spotlong, spotlat, spotsize, spotflux = x[8],x[9],x[10],x[11]
-
-    spotlong = []
-    spotlat = []
-    spotsize = []
-    spotflux = []
-    for i in range(0,len(x[8:])/4):
-      spotlong +=[x[i*4 + 8]]
-      spotlat +=[x[i*4 + 9]]
-      spotsize +=[x[i*4 + 10]]
-      spotflux +=[x[i*4 + 11]]
-
-    input = [p0,system_scale,gamma_0,gamma_1,inc,star_vsini,planet_K,star_K,midtransit,period,east_offset,west_offset,atm_radius,spotlong, spotlat, spotsize, spotflux]
+    input = [p0,system_scale,gamma_0,gamma_1,inc,star_vsini,planet_K,star_K,midtransit,period,east_offset,west_offset,atm_radius]
     data_x = (time-midtransit)/period
-#    master_dat = loadtxt('sodium_spectrum.dat')
-#    model_wvl = array(master_dat[:,0])
-#    master_flux = array(master_dat[:,1])
-#    profile = {'wvl':model_wvl,'spectrum':master_flux}
-
-    #plot(model_wvl,planet_absorb)
-    #show()
-    #quit()
     spot_data = True
 
-    results = vel_prism(data_x, input, star_profile, time,planet_absorb,spot_data=spot_data, type_data='FLUX',plotting=plotting,result_wvl=result_wvl,nproc=nproc,save_star=save_star,load_star=load_star,location=location,absolute=absolute,spot_profile=spot_profile)
+    results = vel_prism(data_x, input, star_profile, time,planet_absorb,spot_data=spot_data, type_data='FLUX',plotting=plotting,result_wvl=result_wvl,nproc=nproc,save_star=save_star,load_star=load_star,location=location,absolute=absolute,spot_profile=spot_profile,spotlong=spotlong,spotlat=spotlat,spotsize=spotsize,spotfill=spotfill)
     return results
 
 def illumination_model(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,star_profile,nproc=4,best_fit=False,save_star=False,load_star=False,star_vsini=3.1,location='full',absolute=False):
