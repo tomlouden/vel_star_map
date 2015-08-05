@@ -83,9 +83,6 @@ def model_3d(x,time,period,planet_K,star_K,midtransit,wvl,line_centers,plotting,
     east_offset = x[2]*0
     west_offset = x[3]*0
     atm_radius = x[4]
-    fwhm = x[5]
-    ratio = x[6]
-    atm_strength = x[7]
 
     input = [p0,system_scale,gamma_0,gamma_1,inc,star_vsini,planet_K,star_K,midtransit,period,east_offset,west_offset,atm_radius]
     data_x = (time-midtransit)/period
