@@ -10,53 +10,38 @@ import multiprocessing.dummy as multithreading
 from functools import partial
 import math
 
-def get_star_spec(scale,profile,vsini,u1,u2,planet_y,planet_radius,spotnumber=0,spotlong=0,spotlat=0,spotsize=0,spotfill=0,load_star=False,save_star=False,nproc=4,spot_profile=False,elements=50):
+def get_star_spec(scale,profile,vsini,u1,u2,planet_y,planet_radius,spotlong=0,spotlat=0,spotsize=0,spotfill=0,save_star=False,nproc=4,spot_profile=False,elements=50):
 
-  if load_star == False:
-    grid, vel_grid, spots = make_star(scale,vsini,u1,u2,spotnumber,spotlong,spotlat,spotsize,spotfill,elements=elements)
+  if save_star == False:
+    grid, vel_grid, spots = make_star(scale,vsini,u1,u2,spotlong,spotlat,spotsize,spotfill,elements=elements)
     star_profile, star_columns, not_planet_columns, shifted_spectra, shifted_spot_spectra = integrate_star_profile(scale,grid,profile,vel_grid,vsini,spots,planet_y,planet_radius,nproc=nproc,spot_profile=spot_profile,elements=elements)
-
     the_star = {'profile':star_profile,'intensity':grid,'velocity':vel_grid,'columns':star_columns,'shifted_spectra':shifted_spectra,'spot_grid':spots,'shifted_spot_spectra':shifted_spot_spectra,'not_planet_columns':not_planet_columns}
-    if save_star != False:
-      pickle.dump(the_star,open(save_star,'wb'))
   else:
-    the_star = pickle.load(open(load_star,'rb'))
+
+    try:
+      the_star = pickle.load(open(load_star,'rb'))
+    except:
+      grid, vel_grid, spots = make_star(scale,vsini,u1,u2,spotlong,spotlat,spotsize,spotfill,elements=elements)
+      star_profile, star_columns, not_planet_columns, shifted_spectra, shifted_spot_spectra = integrate_star_profile(scale,grid,profile,vel_grid,vsini,spots,planet_y,planet_radius,nproc=nproc,spot_profile=spot_profile,elements=elements)
+      the_star = {'profile':star_profile,'intensity':grid,'velocity':vel_grid,'columns':star_columns,'shifted_spectra':shifted_spectra,'spot_grid':spots,'shifted_spot_spectra':shifted_spot_spectra,'not_planet_columns':not_planet_columns}
+
+    pickle.dump(the_star,open(save_star,'wb'))
 
   return the_star
 
-def vel_prism(data_x, input, profile, times, planet_absorb, spot_data=False, type_data='FLUX',plotting=True,get_star_profile=False,load_star=False,save_star=False,result_wvl=False,nproc=4,location='full',absolute=False,spot_profile=False,spotlong=[],spotlat=[],spotsize=[],spotfill=[],elements=50):
+def vel_prism(radiusratio,system_scale,u1,u2,inclination,times,midtransit,period, profile, planet_absorb,atm_radius, east_offset=0,west_offset=0,planet_K=0,star_K=0,vsini=0,plotting=True,get_star_profile=False,save_star=False,result_wvl=False,nproc=4,location='full',absolute=False,spot_profile=False,spotlong=[],spotlat=[],spotsize=[],spotfill=[],elements=50):
 
-  load_star = False
+  data_x = (times-midtransit)/period
+
   # Enter the total stellar and planetary radii  ie (rs + rp) 
-
-  radiusratio = input[0]
-  system_scale = input[1]
 
   semimajor = 1.0/system_scale
 
   radiustotal = (1.0 + radiusratio)/semimajor
-
-  u1 = input[2]# First LD Coefficent?  
-
-  u2 = input[3]# Second LD Coefficent? 
-
-  inclination = input[4]# Enter the Inclination ie (i)  must be 0 < i > 90
   
-  if spot_data == True:
-    spotnumber = 1 
-  else:
-    spotnumber = 0# How many star-spots?  
-
   # If star spots then create spot propaties with user entered values.
 
-  vsini = input[5]
-  planet_K = input[6]
-  star_K = input[7]
-  midtransit = input[8]
-  period = input[9]
-  east_offset = input[10]
-  west_offset = input[11]
-  atm_radius = 1.0 + input[12]
+  atm_radius = 1.0 + abs(atm_radius)
 
   # Convert user variables to system variables
 
@@ -95,11 +80,7 @@ def vel_prism(data_x, input, profile, times, planet_absorb, spot_data=False, typ
 
   planet_radius = elements*atm_radius
 
-  if spotnumber > 0:
-    the_star = get_star_spec(scale,profile,vsini,u1,u2,planet_y,planet_radius,spotnumber=1,spotlong=spotlong,spotlat=spotlat,spotsize=spotsize,spotfill=spotfill,load_star=load_star,save_star=save_star,nproc=nproc,spot_profile=spot_profile,elements=elements)
-  else:
-    the_star = get_star_spec(scale,profile,vsini,u1,u2,planet_y,planet_radius,load_star=load_star,save_star=save_star,nproc=nproc,spot_profile=spot_profile,elements=elements)
-
+  the_star = get_star_spec(scale,profile,vsini,u1,u2,planet_y,planet_radius,spotlong=spotlong,spotlat=spotlat,spotsize=spotsize,spotfill=spotfill,save_star=save_star,nproc=nproc,spot_profile=spot_profile,elements=elements)
 
   vel_grid = the_star['velocity']
   grid = the_star['intensity']
@@ -142,7 +123,7 @@ def vel_prism(data_x, input, profile, times, planet_absorb, spot_data=False, typ
 
   return output
 
-def make_star(scale,vsini,u1,u2,spotnumber=0,spotlong=0,spotlat=0,spotsize=0,spotfill=0,elements=50):
+def make_star(scale,vsini,u1,u2,spotlong=0,spotlat=0,spotsize=0,spotfill=0,elements=50):
 
   star_pixel_rad = (scale * elements)  # Star radius in planetary radii multiplyed by 50 pixels
   n = int((2*elements * scale))  # Using a planet with a 50 pixel radius 
@@ -175,7 +156,7 @@ def make_star(scale,vsini,u1,u2,spotnumber=0,spotlong=0,spotlat=0,spotsize=0,spo
   #Star Spots
 
   spot = np.zeros((n,n))
-  if spotnumber > 0: 
+  if len(spotlong) > 0: 
 
     for sp in range(0,len(spotlong)):
         plane_centre = np.zeros(3)
@@ -310,158 +291,6 @@ def model_transit(n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius
       results = r_planet_profile/star_profile
 
       return results
-
-def illum_track(data_x, input, profile, times, planet_absorb, spot_data=False, type_data='FLUX',plotting=True,get_star_profile=False,load_star=False,save_star=False,result_wvl=False,nproc=4,location='full',absolute=False):
-
-  load_star = False
-
-  radiusratio = input[0]
-  system_scale = input[1]
-
-  semimajor = 1.0/system_scale
-
-  radiustotal = (1.0 + radiusratio)/semimajor
-
-  u1 = input[2]# First LD Coefficent?  
-
-  u2 = input[3]# Second LD Coefficent? 
-
-  inclination = input[4]# Enter the Inclination ie (i)  must be 0 < i > 90
-  
-  if spot_data == True:
-    spotnumber = 1 
-  else:
-    spotnumber = 0# How many star-spots?  
-
-  # If star spots then create spot propaties with user entered values.
-
-  vsini = input[5]
-  planet_K = input[6]
-  star_K = input[7]
-  midtransit = input[8]
-  period = input[9]
-  east_offset = input[10]
-  west_offset = input[11]
-  atm_radius = 1.0 + input[12]
-
-  if spotnumber > 0:
-    spotlong = input[13]   # Longituduile postion of spot? ie -90 to 90 note: that 0 is the centre
-    spotlat = input[14]    # latitude postion of spot? ie 0 to 90 note: that 90 is the equator
-    spotsize = input[15]    # Radius of spot in degrees? note 90 degrees equals the whole stellar disc
-    spotfill = input[16] # Flux of spot? ie 1.00 equals stellar photosphere
-
-  # Convert user variables to system variables
-
-  rs = radiustotal/(radiusratio+1)    # Stellar Radius
-
-  rp = (radiustotal-rs) # gives the planet radii scaled to stellar radius.
-
-  # Now to select a grid size based on system size
-
-  scale = rs/rp
-
-  n = int((2*elements * (rs/rp)))  # Using a planet with a 50 pixel radius 
-
-  # Creates a n*n Grid where n is twice the length of both the planet plus the star radii in pixels
-
-  # Convert inclination to y corrodinates on grid
-
-  inclination_rad = (inclination/180)*(pi) # Converts from degrees to radians
-
-  planet_y_scalar = semimajor * cos(inclination_rad) # finds the planets y corrodinate
-
-  if planet_y_scalar < 0:
-    planet_y_scalar = 0 # Cos(90) gives a small negative value, so reset cos(90) = 0
-
-  # set the y-corroditite of the planet
-
-  planet_y = (planet_y_scalar)/(1+(rp/rs)) * ((elements * (rs/rp)) +elements)
-
-  y_offset = (n/2) - planet_y
-
-  # creating the Star on the grid with quadratic limb darkening.
-
-  star_pixel_rad = ((rs/rp) * elements)  # Star radius in planetary radii multiplyed by 50 pixels
-
-  x=np.arange(-n/2,n/2)            # Create an vector of length n filled from -n/2 to n/2
-
-  if spotnumber > 0:
-    the_star = get_star_spec(scale,profile,vsini,u1,u2,spotnumber=0,spotlong=0,spotlat=0,spotsize=0,load_star=load_star,save_star=save_star,nproc=nproc)
-  else:
-    the_star = get_star_spec(scale,profile,vsini,u1,u2,load_star=load_star,save_star=save_star,nproc=nproc)
-
-
-  vel_grid = the_star['velocity']
-  grid = the_star['intensity']
-  star_profile = the_star['profile']
-  star_columns = the_star['columns']
-  shifted_spectra = the_star['shifted_spectra']
-
-  wvl = profile['wvl']
-
-  star_rv = 2.1
-
-  vel_model = star_rv + 1*planet_K*sin(2.0*pi*(midtransit-times)/period)
-  star_vel_model = -1*star_K*sin(2.0*pi*(midtransit-times)/period)
-
-
-  # Intergrations of the planet to create LC model.
-
-#  let's multiprocess this instead, set it up as a new function and map k to pool tada?...
-
-  p = multiprocessing.Pool(nproc)
-
-  data_points = len(data_x)
-
-  # make curry
-
-  new_data_x = data_x.copy()
-
-  xx = ( (sin(new_data_x * 2 * pi)*(semimajor * star_pixel_rad))) +((elements * (rs/rp)))
-  old_xx = xx.copy()
-  thickness = elements*atm_radius
-  if location == 'left':
-    xx = xx - thickness
-  if location == 'right':
-    xx = xx + thickness
-
-
-  int_xx = np.array([int(x) for x in xx])
-  int_y = int(planet_y)
-
-  d1 = 5895.924
-  d2 = 5889.950
-
-  c = 299792.458
-
-  shifted_d1 = d1*(1.0 - (vel_model/c))
-  shifted_d2 = d2*(1.0 - (vel_model/c))
-
-  background_d1 = []
-  background_d2 = []
-  star_vel = []
-  out_shifted_spectra = []
-
-  for i in range(0,len(vel_model)):
-    if (xx[i] > max(old_xx)) or (xx[i] < min(old_xx)):
-      background_d1 += [0]
-      background_d2 += [0]
-      star_vel += [0]
-      out_shifted_spectra += [shifted_spectra[0].copy()*0.0]
-    else:
-      ld = grid[xx[i],planet_y]
-      med_shifted_spectra = ld*shifted_spectra[int_xx[i]]/np.median(shifted_spectra[0])
-      background_d1 += [med_shifted_spectra[argmin(abs(wvl-shifted_d1[i]))]]
-      background_d2 += [med_shifted_spectra[argmin(abs(wvl-shifted_d2[i]))]]
-      star_vel += [vel_grid[int_xx[i],planet_y]]
-      out_shifted_spectra += [shifted_spectra[int_xx[i]]]
-
-
-  background_d2 = np.array(background_d2)
-  background_d1 = np.array(background_d1)
-  star_vel = np.array(star_vel)
-
-  return wvl, background_d1, background_d2, star_vel, vel_model-star_rv, shifted_d1,out_shifted_spectra
 
 def integrate_star_profile(scale,grid,profile,vel_grid,vsini,spots,planet_y,planet_radius,nproc=4,spot_profile=False,elements=50):
   
