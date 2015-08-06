@@ -1,13 +1,8 @@
 # -*- coding: utf-8 -*-
-from pylab import *
 import numpy as np
-from numpy import pi, cos, sin,sqrt, arcsin, arccos
 from spec_manip import *
-import scipy.optimize as opt
 import pickle
 import multiprocessing
-import multiprocessing.dummy as multithreading
-from functools import partial
 import math
 
 def get_star_spec(scale,profile,vsini,u1,u2,planet_y,planet_radius,spotlong=0,spotlat=0,spotsize=0,spotfill=0,save_star=False,nproc=4,spot_profile=False,elements=50):
