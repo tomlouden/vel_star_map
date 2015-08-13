@@ -101,7 +101,7 @@ def vel_prism(radiusratio,system_scale,u1,u2,inclination,times,midtransit,period
 
   curry = []
   for i in range(0,data_points):
-    curry += [[n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius,planet_y,grid,the_star,profile,x,times,vel_model,star_vel_model,east_offset,west_offset,planet_absorb,star_columns,star_profile,shifted_spectra,result_wvl,plotting,1,i,location,absolute,spot_profile,elements]]
+    curry += [[n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius,planet_y,grid,the_star,profile,x,times,vel_model,star_vel_model,east_offset,west_offset,planet_absorb,star_columns,star_profile,shifted_spectra,result_wvl,plotting,1,i,u1,location,absolute,spot_profile,elements]]
 
   if nproc == 1:
     output = []
@@ -198,11 +198,11 @@ def make_star(scale,u1,u2,spots=[],vsini=0,elements=50):
 
 
 def uncurry_model_transit(c):
-  return model_transit(c[0],c[1],c[2],c[3],c[4],c[5],c[6],c[7],c[8],c[9],c[10],c[11],c[12],c[13],c[14],c[15],c[16],c[17],c[18],c[19],c[20],c[21],c[22],c[23],c[24],c[25],c[26],c[27],c[28],c[29])
+  return model_transit(c[0],c[1],c[2],c[3],c[4],c[5],c[6],c[7],c[8],c[9],c[10],c[11],c[12],c[13],c[14],c[15],c[16],c[17],c[18],c[19],c[20],c[21],c[22],c[23],c[24],c[25],c[26],c[27],c[28],c[29],c[30])
 
-def model_transit(n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius,planet_y,grid,the_star,profile,oldx,times,vel_model,star_vel_model,east_offset,west_offset,planet_absorb,star_columns,star_profile,shifted_spectra,result_wvl,plotting,nproc,k,location='full',absolute=False,spot_profile=False,elements=50):
+def model_transit(n,data_points,data_x,semimajor,star_pixel_rad,rs,rp,atm_radius,planet_y,grid,the_star,profile,oldx,times,vel_model,star_vel_model,east_offset,west_offset,planet_absorb,star_columns,star_profile,shifted_spectra,result_wvl,plotting,nproc,k,u1,location='full',absolute=False,spot_profile=False,elements=50):
 
-      planet = np.zeros((n,n,len(star_profile))) + 1
+      planet = np.zeros((n,n,len(u1))) + 1
       atmosphere = np.zeros((n,n)) + 1
 
       new_data_x = data_x.copy()
@@ -306,6 +306,16 @@ def integrate_star_profile(scale,grid,profile,vel_grid,vsini,spots,planet_y,plan
   upper = int(1 + n/2 + planet_y + math.ceil(planet_radius))
   lower = int(-1 + n/2 + planet_y - math.ceil(planet_radius))
 
+  if upper <0:
+    upper = 0
+  if lower <0:
+    lower = 0
+  if upper >len(grid):
+    upper = len(grid)
+  if lower >len(grid):
+    lower = len(grid)
+
+
   curry = []
   for i in range(0,n-1):
     curry += [[i,x,n,star_pixel_rad,grid,spectrum,wvl,vel_grid,vsini,spots,spot_profile,upper,lower]]
@@ -347,6 +357,15 @@ def integrate_rotation_profile(profile,grid,the_star,shifted_spectra,x,n,star_pi
 
   upper = int(1 + n/2 + planet_y + math.ceil(elements*atm_radius))
   lower = int(-1 + n/2 + planet_y - math.ceil(elements*atm_radius))
+
+  if upper <0:
+    upper = 0
+  if lower <0:
+    lower = 0
+  if upper >len(grid):
+    upper = len(grid)
+  if lower >len(grid):
+    lower = len(grid)
 
   for i in range(0,n-1):          # Begin small filling loop
     r = sqrt(x**2+(i-(n/2.0))**2)     # creates an x by i array filled with r 
